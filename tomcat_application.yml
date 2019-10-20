@@ -1,6 +1,8 @@
 ---
 - hosts: newserver
   become: true
+  vars:
+    selinux_state: disabled
 
   tasks:
   - name: Update repositories cache
@@ -21,7 +23,7 @@
        - git
 
   - name: Disable SELinux
-    selinux: state=disabled
+    selinux: "state={{ selinux_state }}"
 
   - name: Setting JAVA_HOME path
     lineinfile:
@@ -72,8 +74,11 @@
       src: sample.war
       dest: /opt/apache-tomcat-8.5.47/webapps/ROOT.war
 
+#  - name: running script           # This task is running fine but the script will not run on remote system
+#    script: catalina.sh start &    # that's why I have used command module with async option
+
   - name: Running the catalina.sh
-    shell: /opt/apache-tomcat-8.5.47/bin/catalina.sh start &
+    command: "/opt/apache-tomcat-8.5.47/bin/catalina.sh start &"
     async: 2592000
     poll: 0
 

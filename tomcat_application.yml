@@ -1,0 +1,85 @@
+---
+- hosts: newserver
+  become: true
+
+  tasks:
+  - name: Update repositories cache
+    apt: 
+      update_cache: yes
+
+  - name: installing packages
+    package:
+      name: "{{ item }}"
+      state: present
+    with_items:
+       - build-essential
+       - python-selinux
+       - selinux
+       - default-jre
+       - default-jdk
+       - apache2
+       - git
+
+  - name: Disable SELinux
+    selinux: state=disabled
+
+  - name: Setting JAVA_HOME path
+    lineinfile:
+      dest: /etc/environment
+      state: present
+      regexp: '^JAVA_HOME'
+      line: 'JAVA_HOME=/usr/lib/jvm/default-java/'
+
+  - name: Sourcing Environment File
+    shell: source /etc/environment
+    become: no
+    args: 
+     executable: /bin/bash
+
+  - name: Removing apache2 000-default.conf
+    file:
+      state: absent
+      path: /etc/apache2/sites-enabled/000-default.conf
+    notify:
+      - Restarting and enabling Apache2
+
+  - name: Running Command a2enmod proxy_http
+    shell: a2enmod proxy_http
+  
+  - name: Clonning git repo apache-tomcat-8.5.47.tar.gz into /opt
+    git:
+      repo: https://github.com/sandeepkmverma/ttn_tomcat_repo.git
+      dest: /opt
+
+  - name: Extracting the tomcat zip file
+    unarchive:
+      src: /opt/apache-tomcat-8.5.47.tar.gz
+      dest: /opt
+      remote_src: yes
+
+  - name: Copying the conf file
+    template:
+      src: tomcat-backend.conf.j2
+      dest: /etc/apache2/sites-enabled/tomcat-backend.conf
+
+  - name: Removing the tomcat root file
+    file:
+      state: absent
+      path: /opt/apache-tomcat-8.5.47/webapps/ROOT
+
+  - name: Copying the sample.war file
+    copy:
+      src: sample.war
+      dest: /opt/apache-tomcat-8.5.47/webapps/ROOT.war
+
+  - name: Running the catalina.sh
+    shell: /opt/apache-tomcat-8.5.47/bin/catalina.sh start &
+    async: 2592000
+    poll: 0
+
+  handlers:
+    - name: Restarting and enabling Apache2
+      service:
+        name: apache2
+        state: restarted
+        enabled: yes

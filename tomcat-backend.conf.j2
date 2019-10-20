@@ -1,0 +1,7 @@
+<VirtualHost *:80>
+        ServerName {{ ansible_hostname }}
+        ServerAlias server
+        ProxyPreserveHost On
+        ProxyPass        "/" "http://{{ ansible_host }}:8080/"
+        ProxyPassReverse "/" "http://{{ ansible_host }}:8080/"
+</VirtualHost>
